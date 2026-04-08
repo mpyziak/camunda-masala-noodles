@@ -2,15 +2,20 @@ package com.noodles;
 
 import com.noodles.util.Constants;
 import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.batch.core.BatchStatus;
 import org.springframework.batch.core.JobExecution;
 import org.springframework.batch.core.JobParameters;
 import org.springframework.batch.core.JobParametersBuilder;
+import org.springframework.batch.core.launch.JobLauncher;
 import org.springframework.batch.test.JobLauncherTestUtils;
 import org.springframework.batch.test.context.SpringBatchTest;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.test.context.SpringBootTest;
+
+import java.util.UUID;
 
 /**
  * Integration test for the full cook noodles batch job flow.
@@ -21,6 +26,15 @@ class NoodlesFlowTest {
 
     @Autowired
     private JobLauncherTestUtils jobLauncherTestUtils;
+
+    @Autowired
+    @Qualifier("jobLauncher")
+    private JobLauncher jobLauncher;
+
+    @BeforeEach
+    void setUp() {
+        jobLauncherTestUtils.setJobLauncher(jobLauncher);
+    }
 
     @Test
     void testCompleteTask() throws Exception {
@@ -34,7 +48,7 @@ class NoodlesFlowTest {
                 .addString(Constants.CHEESE, "true")
                 .addString(Constants.CARROT, "true")
                 .addString(Constants.CAPSICUM, "true")
-                .addLong("timestamp", System.currentTimeMillis())
+                .addString("runId", UUID.randomUUID().toString())
                 .toJobParameters();
 
         JobExecution execution = jobLauncherTestUtils.launchJob(params);
@@ -53,7 +67,7 @@ class NoodlesFlowTest {
         JobParameters params = new JobParametersBuilder()
                 .addString(Constants.WATER, "true")
                 .addString(Constants.PAN_SPATULA, "true")
-                .addLong("timestamp", System.currentTimeMillis())
+                .addString("runId", UUID.randomUUID().toString())
                 .toJobParameters();
 
         JobExecution execution = jobLauncherTestUtils.launchJob(params);

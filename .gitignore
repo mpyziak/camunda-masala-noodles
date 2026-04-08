@@ -102,3 +102,6 @@ fabric.properties
 
 # remove target
 target/*/**
+
+# test coverage report
+jacoco.exec

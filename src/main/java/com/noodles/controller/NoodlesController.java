@@ -15,11 +15,14 @@ import org.springframework.batch.core.JobParameters;
 import org.springframework.batch.core.JobParametersBuilder;
 import org.springframework.batch.core.launch.JobLauncher;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+
+import java.util.UUID;
 
 /**
  * @implSpec : Controller to start cooking of veg masala noodles via Spring Batch Job
@@ -33,7 +36,7 @@ public class NoodlesController {
     private final Job cookNoodlesJob;
 
     @Autowired
-    public NoodlesController(JobLauncher jobLauncher, Job cookNoodlesJob) {
+    public NoodlesController(@Qualifier("asyncJobLauncher") JobLauncher jobLauncher, Job cookNoodlesJob) {
         this.jobLauncher = jobLauncher;
         this.cookNoodlesJob = cookNoodlesJob;
     }
@@ -66,7 +69,7 @@ public class NoodlesController {
                     .addString(Constants.CHEESE, String.valueOf(cheese))
                     .addString(Constants.CARROT, String.valueOf(carrot))
                     .addString(Constants.CAPSICUM, String.valueOf(capsicum))
-                    .addLong("timestamp", System.currentTimeMillis())
+                    .addString("runId", UUID.randomUUID().toString())
                     .toJobParameters();
 
             JobExecution execution = jobLauncher.run(cookNoodlesJob, params);

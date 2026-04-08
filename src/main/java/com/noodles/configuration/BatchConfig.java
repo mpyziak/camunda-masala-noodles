@@ -7,11 +7,14 @@ import com.noodles.workflow.delegates.OrderOnline;
 import org.springframework.batch.core.Job;
 import org.springframework.batch.core.Step;
 import org.springframework.batch.core.job.builder.JobBuilder;
+import org.springframework.batch.core.launch.JobLauncher;
+import org.springframework.batch.core.launch.support.TaskExecutorJobLauncher;
 import org.springframework.batch.core.repository.JobRepository;
 import org.springframework.batch.core.step.builder.StepBuilder;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 import org.springframework.transaction.PlatformTransactionManager;
 
 /**
@@ -26,6 +29,28 @@ import org.springframework.transaction.PlatformTransactionManager;
  */
 @Configuration
 public class BatchConfig {
+
+    // ── Job Launchers ──────────────────────────────────────────────────────
+
+    /**
+     * Async JobLauncher with thread pool for high-throughput production use.
+     * The default synchronous jobLauncher is auto-configured by Spring Boot.
+     */
+    @Bean
+    public JobLauncher asyncJobLauncher(JobRepository jobRepository) {
+        TaskExecutorJobLauncher launcher = new TaskExecutorJobLauncher();
+        launcher.setJobRepository(jobRepository);
+
+        ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
+        executor.setCorePoolSize(20);
+        executor.setMaxPoolSize(100);
+        executor.setQueueCapacity(200);
+        executor.setThreadNamePrefix("batch-");
+        executor.initialize();
+
+        launcher.setTaskExecutor(executor);
+        return launcher;
+    }
 
     // ── Steps ──────────────────────────────────────────────────────────────
 
