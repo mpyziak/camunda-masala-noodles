@@ -5,6 +5,7 @@ import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.batch.core.BatchStatus;
+import org.springframework.batch.core.Job;
 import org.springframework.batch.core.JobExecution;
 import org.springframework.batch.core.JobParameters;
 import org.springframework.batch.core.JobParametersBuilder;
@@ -31,9 +32,14 @@ class NoodlesFlowTest {
     @Qualifier("jobLauncher")
     private JobLauncher jobLauncher;
 
+    @Autowired
+    @Qualifier("cookNoodlesJob")
+    private Job cookNoodlesJob;
+
     @BeforeEach
     void setUp() {
         jobLauncherTestUtils.setJobLauncher(jobLauncher);
+        jobLauncherTestUtils.setJob(cookNoodlesJob);
     }
 
     @Test
@@ -54,10 +60,11 @@ class NoodlesFlowTest {
         JobExecution execution = jobLauncherTestUtils.launchJob(params);
 
         // job should complete successfully via the happy path:
-        // checkIngredients(COMPLETED) -> letUsCook -> letUsEat
+        // checkIngredients(COMPLETED) -> letUsCook -> letUsEat -> washDishes
         Assertions.assertEquals(BatchStatus.COMPLETED, execution.getStatus());
         Assertions.assertEquals(true, execution.getExecutionContext().get(Constants.DID_WE_EAT_NOODLES));
         Assertions.assertEquals(true, execution.getExecutionContext().get(Constants.IS_IT_COOKING));
+        Assertions.assertEquals(true, execution.getExecutionContext().get(Constants.DISHES_WASHED));
     }
 
     @Test
@@ -73,10 +80,11 @@ class NoodlesFlowTest {
         JobExecution execution = jobLauncherTestUtils.launchJob(params);
 
         // job should complete via the fallback path:
-        // checkIngredients(FAILED) -> orderOnline
+        // checkIngredients(FAILED) -> orderOnline -> washDishes
         Assertions.assertEquals(BatchStatus.COMPLETED, execution.getStatus());
         Assertions.assertEquals(false, execution.getExecutionContext().get(Constants.DID_WE_EAT_NOODLES));
         Assertions.assertEquals(true, execution.getExecutionContext().get(Constants.ORDER_ONLINE));
+        Assertions.assertEquals(true, execution.getExecutionContext().get(Constants.DISHES_WASHED));
     }
 
 }

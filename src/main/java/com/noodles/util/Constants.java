@@ -17,7 +17,8 @@ public class Constants {
     public static final String CHEESE = "cheese";
     public static final String CARROT = "carrot";
     public static final String CAPSICUM = "capsicum";
-    public static String ORDER_ONLINE = "OrderOnline";
+    public static final String ORDER_ONLINE = "OrderOnline";
+    public static final String DISHES_WASHED = "DishesWashed";
 
     private Constants() {
         throw new IllegalStateException("Constants Utility Class. Cannot be instantiated.");

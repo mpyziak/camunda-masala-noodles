@@ -4,6 +4,7 @@ import com.noodles.workflow.delegates.CheckIngredients;
 import com.noodles.workflow.delegates.LetUsCook;
 import com.noodles.workflow.delegates.LetUsEat;
 import com.noodles.workflow.delegates.OrderOnline;
+import com.noodles.workflow.delegates.WashDishes;
 import org.springframework.batch.core.Job;
 import org.springframework.batch.core.Step;
 import org.springframework.batch.core.job.builder.JobBuilder;
@@ -102,20 +103,53 @@ public class BatchConfig {
                 .build();
     }
 
-    // ── Job (conditional flow) ─────────────────────────────────────────────
+    @Bean
+    public Step washDishesStep(JobRepository jobRepository,
+                               PlatformTransactionManager transactionManager,
+                               WashDishes washDishes) {
+        return new StepBuilder("washDishesStep", jobRepository)
+                .tasklet(washDishes, transactionManager)
+                .build();
+    }
 
+    // ── Jobs ───────────────────────────────────────────────────────────────
+
+    /**
+     * Main cook noodles job (conditional flow).
+     *
+     * <p>Flow:
+     * <pre>
+     *   checkIngredientsStep --[FAILED]--> orderOnlineStep --> washDishesStep --> END
+     *                        --[  *   ]--> letUsCookStep --[FAILED]--> orderOnlineStep --> washDishesStep --> END
+     *                                                    --[  *   ]--> letUsEatStep --> washDishesStep --> END
+     * </pre>
+     */
     @Bean
     public Job cookNoodlesJob(JobRepository jobRepository,
                               @Qualifier("checkIngredientsStep") Step checkIngredientsStep,
                               @Qualifier("letUsCookStep") Step letUsCookStep,
                               @Qualifier("letUsEatStep") Step letUsEatStep,
-                              @Qualifier("orderOnlineStep") Step orderOnlineStep) {
+                              @Qualifier("orderOnlineStep") Step orderOnlineStep,
+                              @Qualifier("washDishesStep") Step washDishesStep) {
         return new JobBuilder("cookNoodlesJob", jobRepository)
                 .start(checkIngredientsStep).on("FAILED").to(orderOnlineStep)
                 .from(checkIngredientsStep).on("*").to(letUsCookStep)
                 .from(letUsCookStep).on("FAILED").to(orderOnlineStep)
                 .from(letUsCookStep).on("*").to(letUsEatStep)
+                .from(orderOnlineStep).on("*").to(washDishesStep)
+                .from(letUsEatStep).on("*").to(washDishesStep)
                 .end()
+                .build();
+    }
+
+    /**
+     * Standalone wash-dishes job, triggered independently via webhook.
+     */
+    @Bean
+    public Job washDishesJob(JobRepository jobRepository,
+                             @Qualifier("washDishesStep") Step washDishesStep) {
+        return new JobBuilder("washDishesJob", jobRepository)
+                .start(washDishesStep)
                 .build();
     }
 }

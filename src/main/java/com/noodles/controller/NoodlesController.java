@@ -36,7 +36,8 @@ public class NoodlesController {
     private final Job cookNoodlesJob;
 
     @Autowired
-    public NoodlesController(@Qualifier("asyncJobLauncher") JobLauncher jobLauncher, Job cookNoodlesJob) {
+    public NoodlesController(@Qualifier("asyncJobLauncher") JobLauncher jobLauncher,
+                             @Qualifier("cookNoodlesJob") Job cookNoodlesJob) {
         this.jobLauncher = jobLauncher;
         this.cookNoodlesJob = cookNoodlesJob;
     }
