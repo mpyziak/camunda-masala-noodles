@@ -11,11 +11,14 @@ import org.springframework.batch.core.launch.JobLauncher;
 import org.springframework.batch.core.launch.support.TaskExecutorJobLauncher;
 import org.springframework.batch.core.repository.JobRepository;
 import org.springframework.batch.core.step.builder.StepBuilder;
+import org.springframework.batch.core.step.tasklet.Tasklet;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.retry.support.RetryTemplate;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.web.client.RestClientException;
 
 /**
  * Spring Batch configuration that replaces the Camunda BPMN process definition.
@@ -85,8 +88,17 @@ public class BatchConfig {
     public Step orderOnlineStep(JobRepository jobRepository,
                                 PlatformTransactionManager transactionManager,
                                 OrderOnline orderOnline) {
+        RetryTemplate retryTemplate = RetryTemplate.builder()
+                .maxAttempts(3)
+                .retryOn(RestClientException.class)
+                .exponentialBackoff(1000, 2, 10000)
+                .build();
+
+        Tasklet retryingTasklet = (contribution, chunkContext) ->
+                retryTemplate.execute(ctx -> orderOnline.execute(contribution, chunkContext));
+
         return new StepBuilder("orderOnlineStep", jobRepository)
-                .tasklet(orderOnline, transactionManager)
+                .tasklet(retryingTasklet, transactionManager)
                 .build();
     }
 
