@@ -1,132 +1,127 @@
 package com.noodles.workflow.delegates;
 
 import com.noodles.util.Constants;
-import org.camunda.bpm.engine.delegate.DelegateExecution;
-import org.camunda.bpm.extension.mockito.CamundaMockito;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.mockito.InjectMocks;
-import org.mockito.MockitoAnnotations;
-
-import java.util.HashMap;
-import java.util.Map;
+import org.springframework.batch.core.*;
+import org.springframework.batch.core.scope.context.ChunkContext;
+import org.springframework.batch.core.scope.context.StepContext;
+import org.springframework.batch.repeat.RepeatStatus;
 
 /**
- * Mockito based JUnit 5 test to validate inputs
+ * Unit test for CheckIngredients Tasklet
  */
 class CheckIngredientsTest {
 
-    DelegateExecution execution;
-
-    @InjectMocks
     private CheckIngredients checkIngredients;
 
     @BeforeEach
     void setUp() {
-
-        MockitoAnnotations.openMocks(this);
-
-        execution = CamundaMockito.delegateExecutionFake();
-
+        checkIngredients = new CheckIngredients();
     }
 
     @Test
     void test_I_have_noodles_water_pan_spatula() {
+        JobParameters params = new JobParametersBuilder()
+                .addString(Constants.NOODLES, "true")
+                .addString(Constants.WATER, "true")
+                .addString(Constants.PAN_SPATULA, "true")
+                .toJobParameters();
 
-        Map<String, Object> variables = new HashMap<>();
-        variables.put(Constants.NOODLES, true);
-        variables.put(Constants.WATER, true);
-        variables.put(Constants.PAN_SPATULA, true);
-        execution.setVariables(variables);
+        StepExecution stepExecution = createStepExecution(params);
+        StepContribution contribution = new StepContribution(stepExecution);
+        ChunkContext chunkContext = new ChunkContext(new StepContext(stepExecution));
 
-        checkIngredients.execute(execution);
+        RepeatStatus status = checkIngredients.execute(contribution, chunkContext);
 
-        //one additional variable added to execution
-        Assertions.assertEquals((variables.size() + 1), execution.getVariables().size());
-
-        //check all mandatory ingredients are avaialble
-        Assertions.assertEquals(true, execution.getVariable(Constants.INGREDIENTS_AVAILABLE));
-
+        Assertions.assertEquals(RepeatStatus.FINISHED, status);
+        Assertions.assertEquals(ExitStatus.COMPLETED, contribution.getExitStatus());
+        Assertions.assertEquals(true, stepExecution.getJobExecution().getExecutionContext().get(Constants.INGREDIENTS_AVAILABLE));
     }
 
     @Test
     void test_I_have_noodles_water_pan_spatula_vegetables_cheese() {
+        JobParameters params = new JobParametersBuilder()
+                .addString(Constants.NOODLES, "true")
+                .addString(Constants.WATER, "true")
+                .addString(Constants.PAN_SPATULA, "true")
+                .addString(Constants.ONION, "true")
+                .addString(Constants.TOMATO, "true")
+                .addString(Constants.CHEESE, "true")
+                .addString(Constants.CARROT, "true")
+                .addString(Constants.CAPSICUM, "true")
+                .toJobParameters();
 
-        Map<String, Object> variables = new HashMap<>();
-        variables.put(Constants.NOODLES, true);
-        variables.put(Constants.WATER, true);
-        variables.put(Constants.PAN_SPATULA, true);
-        variables.put(Constants.ONION, true);
-        variables.put(Constants.TOMATO, true);
-        variables.put(Constants.CHEESE, true);
-        variables.put(Constants.CARROT, true);
-        variables.put(Constants.CAPSICUM, true);
-        execution.setVariables(variables);
+        StepExecution stepExecution = createStepExecution(params);
+        StepContribution contribution = new StepContribution(stepExecution);
+        ChunkContext chunkContext = new ChunkContext(new StepContext(stepExecution));
 
-        checkIngredients.execute(execution);
+        RepeatStatus status = checkIngredients.execute(contribution, chunkContext);
 
-        //one additional variable added to execution
-        Assertions.assertEquals((variables.size() + 1), execution.getVariables().size());
-
-        //check all mandatory ingredients are avaialble
-        Assertions.assertEquals(true, execution.getVariable(Constants.INGREDIENTS_AVAILABLE));
-
+        Assertions.assertEquals(RepeatStatus.FINISHED, status);
+        Assertions.assertEquals(ExitStatus.COMPLETED, contribution.getExitStatus());
+        Assertions.assertEquals(true, stepExecution.getJobExecution().getExecutionContext().get(Constants.INGREDIENTS_AVAILABLE));
     }
 
     @Test
     void test_I_do_not_have_noodles() {
+        JobParameters params = new JobParametersBuilder()
+                .addString(Constants.WATER, "true")
+                .addString(Constants.PAN_SPATULA, "true")
+                .toJobParameters();
 
-        Map<String, Object> variables = new HashMap<>();
-        variables.put(Constants.WATER, true);
-        variables.put(Constants.PAN_SPATULA, true);
-        execution.setVariables(variables);
+        StepExecution stepExecution = createStepExecution(params);
+        StepContribution contribution = new StepContribution(stepExecution);
+        ChunkContext chunkContext = new ChunkContext(new StepContext(stepExecution));
 
-        checkIngredients.execute(execution);
+        RepeatStatus status = checkIngredients.execute(contribution, chunkContext);
 
-        //one additional variable added to execution
-        Assertions.assertEquals((variables.size() + 1), execution.getVariables().size());
-
-        //check all mandatory ingredients are avaialble
-        Assertions.assertEquals(false, execution.getVariable(Constants.INGREDIENTS_AVAILABLE));
-
+        Assertions.assertEquals(RepeatStatus.FINISHED, status);
+        Assertions.assertEquals(ExitStatus.FAILED, contribution.getExitStatus());
+        Assertions.assertEquals(false, stepExecution.getJobExecution().getExecutionContext().get(Constants.INGREDIENTS_AVAILABLE));
     }
 
     @Test
     void test_I_do_not_have_water() {
+        JobParameters params = new JobParametersBuilder()
+                .addString(Constants.NOODLES, "true")
+                .addString(Constants.PAN_SPATULA, "true")
+                .toJobParameters();
 
-        Map<String, Object> variables = new HashMap<>();
-        variables.put(Constants.NOODLES, true);
-        variables.put(Constants.PAN_SPATULA, true);
-        execution.setVariables(variables);
+        StepExecution stepExecution = createStepExecution(params);
+        StepContribution contribution = new StepContribution(stepExecution);
+        ChunkContext chunkContext = new ChunkContext(new StepContext(stepExecution));
 
-        checkIngredients.execute(execution);
+        RepeatStatus status = checkIngredients.execute(contribution, chunkContext);
 
-        //one additional variable added to execution
-        Assertions.assertEquals((variables.size() + 1), execution.getVariables().size());
-
-        //check all mandatory ingredients are avaialble
-        Assertions.assertEquals(false, execution.getVariable(Constants.INGREDIENTS_AVAILABLE));
-
+        Assertions.assertEquals(RepeatStatus.FINISHED, status);
+        Assertions.assertEquals(ExitStatus.FAILED, contribution.getExitStatus());
+        Assertions.assertEquals(false, stepExecution.getJobExecution().getExecutionContext().get(Constants.INGREDIENTS_AVAILABLE));
     }
 
     @Test
     void test_I_do_not_have_pan_and_spatula() {
+        JobParameters params = new JobParametersBuilder()
+                .addString(Constants.NOODLES, "true")
+                .addString(Constants.WATER, "true")
+                .toJobParameters();
 
-        Map<String, Object> variables = new HashMap<>();
-        variables.put(Constants.NOODLES, true);
-        variables.put(Constants.WATER, true);
-        execution.setVariables(variables);
+        StepExecution stepExecution = createStepExecution(params);
+        StepContribution contribution = new StepContribution(stepExecution);
+        ChunkContext chunkContext = new ChunkContext(new StepContext(stepExecution));
 
-        checkIngredients.execute(execution);
+        RepeatStatus status = checkIngredients.execute(contribution, chunkContext);
 
-        //one additional variable added to execution
-        Assertions.assertEquals((variables.size() + 1), execution.getVariables().size());
-
-        //check all mandatory ingredients are avaialble
-        Assertions.assertEquals(false, execution.getVariable(Constants.INGREDIENTS_AVAILABLE));
-
+        Assertions.assertEquals(RepeatStatus.FINISHED, status);
+        Assertions.assertEquals(ExitStatus.FAILED, contribution.getExitStatus());
+        Assertions.assertEquals(false, stepExecution.getJobExecution().getExecutionContext().get(Constants.INGREDIENTS_AVAILABLE));
     }
 
-
+    private StepExecution createStepExecution(JobParameters params) {
+        JobInstance jobInstance = new JobInstance(1L, "cookNoodlesJob");
+        JobExecution jobExecution = new JobExecution(jobInstance, params);
+        return new StepExecution("checkIngredientsStep", jobExecution);
+    }
 }
+

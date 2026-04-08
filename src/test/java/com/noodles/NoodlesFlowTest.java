@@ -1,95 +1,68 @@
 package com.noodles;
 
 import com.noodles.util.Constants;
-import org.camunda.bpm.scenario.ProcessScenario;
-import org.camunda.bpm.scenario.Scenario;
-import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
-import org.mockito.Mock;
-import org.mockito.MockitoAnnotations;
+import org.springframework.batch.core.BatchStatus;
+import org.springframework.batch.core.JobExecution;
+import org.springframework.batch.core.JobParameters;
+import org.springframework.batch.core.JobParametersBuilder;
+import org.springframework.batch.test.JobLauncherTestUtils;
+import org.springframework.batch.test.context.SpringBatchTest;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.context.SpringBootTest;
 
-import java.util.HashMap;
-import java.util.Map;
+/**
+ * Integration test for the full cook noodles batch job flow.
+ */
+@SpringBatchTest
+@SpringBootTest
+class NoodlesFlowTest {
 
-import static org.camunda.bpm.engine.test.assertions.bpmn.BpmnAwareTests.assertThat;
-import static org.mockito.Mockito.*;
+    @Autowired
+    private JobLauncherTestUtils jobLauncherTestUtils;
 
-public class NoodlesFlowTest extends ProcessFlowTest {
+    @Test
+    void testCompleteTask() throws Exception {
 
-    public Map<String, Object> variables;
+        JobParameters params = new JobParametersBuilder()
+                .addString(Constants.NOODLES, "true")
+                .addString(Constants.WATER, "true")
+                .addString(Constants.PAN_SPATULA, "true")
+                .addString(Constants.ONION, "true")
+                .addString(Constants.TOMATO, "true")
+                .addString(Constants.CHEESE, "true")
+                .addString(Constants.CARROT, "true")
+                .addString(Constants.CAPSICUM, "true")
+                .addLong("timestamp", System.currentTimeMillis())
+                .toJobParameters();
 
-    @Mock
-    private ProcessScenario scenario;
+        JobExecution execution = jobLauncherTestUtils.launchJob(params);
 
-    @BeforeEach
-    public void setup() {
-
-        MockitoAnnotations.openMocks(this);
-
-        //pep request variables
-        variables = new HashMap<>();
-        variables.put(Constants.NOODLES, true);
-        variables.put(Constants.ONION, true);
-        variables.put(Constants.TOMATO, true);
-        variables.put(Constants.WATER, true);
-        variables.put(Constants.CARROT, true);
-        variables.put(Constants.CAPSICUM, true);
-        variables.put(Constants.CHEESE, true);
-        variables.put(Constants.PAN_SPATULA, true);
+        // job should complete successfully via the happy path:
+        // checkIngredients(COMPLETED) -> letUsCook -> letUsEat
+        Assertions.assertEquals(BatchStatus.COMPLETED, execution.getStatus());
+        Assertions.assertEquals(true, execution.getExecutionContext().get(Constants.DID_WE_EAT_NOODLES));
+        Assertions.assertEquals(true, execution.getExecutionContext().get(Constants.IS_IT_COOKING));
     }
 
     @Test
-    void testCompleteTask() {
+    void testMissingIngredientsTask() throws Exception {
 
-        //event based gateway response set for mocking
-        when(scenario.waitsAtEventBasedGateway("IsItReady")).thenReturn(gateway -> {
-            System.out.println("ReceivedEvent");
-            Map recVariables = new HashMap<String, Object>();
+        // missing noodles -> checkIngredients returns FAILED -> orderOnline
+        JobParameters params = new JobParametersBuilder()
+                .addString(Constants.WATER, "true")
+                .addString(Constants.PAN_SPATULA, "true")
+                .addLong("timestamp", System.currentTimeMillis())
+                .toJobParameters();
 
-            gateway.getEventSubscription("IsReady").receive(recVariables);
-        });
+        JobExecution execution = jobLauncherTestUtils.launchJob(params);
 
-
-        //this will trigger the BPMN Flow to invoke the cooking process
-        Scenario handler = Scenario.run(scenario).startByKey("CookMasalaVeggiesNoodles", variables).execute();
-
-        // check the final output if it has all the values
-        assertThat(handler.instance(scenario)).variables().containsEntry(Constants.DID_WE_EAT_NOODLES, true);
-
-        // check the order of the desired steps in the success flow
-        verify(scenario, times(1)).hasFinished("Start_Process"); // process start
-        verify(scenario, atMostOnce()).hasCompleted("CanWeCook"); // exclusive gateway
-        verify(scenario, atMostOnce()).hasCompleted("LetsCook"); // cooking service step
-        verify(scenario, atMostOnce()).hasCompleted("IsItReady"); // check for the event
-        verify(scenario, atMostOnce()).hasCompleted("LetUsEat"); // ALl went well so call eat service
-        verify(scenario, times(1)).hasFinished("End_Process"); // end event
-
+        // job should complete via the fallback path:
+        // checkIngredients(FAILED) -> orderOnline
+        Assertions.assertEquals(BatchStatus.COMPLETED, execution.getStatus());
+        Assertions.assertEquals(false, execution.getExecutionContext().get(Constants.DID_WE_EAT_NOODLES));
+        Assertions.assertEquals(true, execution.getExecutionContext().get(Constants.ORDER_ONLINE));
     }
-
-    @Test
-    void testCookingDisasterTask() {
-
-        //event based gateway timeout
-        when(scenario.waitsAtEventBasedGateway("IsItReady")).thenReturn(gateway -> {
-            System.out.println("Do Nothing to simulate a timeout");
-        });
-
-        //this will trigger the BPMN Flow to invoke the cooking process
-        Scenario handler = Scenario.run(scenario).startByKey("CookMasalaVeggiesNoodles", variables).execute();
-
-        // check the final output if it has all the values
-        assertThat(handler.instance(scenario)).variables().containsEntry(Constants.DID_WE_EAT_NOODLES, false);
-
-        // check the order of the desired steps in the success flow
-        verify(scenario, times(1)).hasFinished("Start_Process"); // process start
-        verify(scenario, atMostOnce()).hasCompleted("CanWeCook"); // exclusive gateway
-        verify(scenario, atMostOnce()).hasCompleted("LetsCook"); // cooking service step
-        verify(scenario, atMostOnce()).hasCompleted("IsItReady"); // check for the event
-        verify(scenario, never()).hasStarted("LetUsEat"); // All did not go well so call to eat service fails
-        verify(scenario, atMostOnce()).hasCompleted("OrderOnline"); // as it failed eat outside
-        verify(scenario, times(1)).hasFinished("End_Process"); // end event
-
-    }
-
 
 }

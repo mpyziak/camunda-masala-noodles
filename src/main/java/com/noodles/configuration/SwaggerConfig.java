@@ -18,8 +18,8 @@ public class SwaggerConfig {
     @Bean
     public OpenAPI customOpenAPI() {
         return new OpenAPI()
-                .info(new Info().title("Camunda Noodles Service").version("v1.0.0")
-                        .description("We will try to cook veg masala instant noodles using Springboot Camunda Workflow.")
+                .info(new Info().title("Noodles Batch Service").version("v1.0.0")
+                        .description("We will try to cook veg masala instant noodles using Spring Batch job steps.")
                         .termsOfService("Terms of Service").license(getLicense()).contact(getContact()));
 
     }

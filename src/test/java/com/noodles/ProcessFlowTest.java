@@ -7,6 +7,6 @@ import org.springframework.test.context.TestPropertySource;
 @TestPropertySource(locations = "classpath:/application-test.properties")
 public abstract class ProcessFlowTest {
 
-    // abstract class to test process workflow
+    // abstract class to test batch workflow
 
 }

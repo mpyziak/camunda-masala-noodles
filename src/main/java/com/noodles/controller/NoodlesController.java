@@ -7,55 +7,77 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
-import org.apache.commons.lang.StringUtils;
-import org.camunda.bpm.engine.RuntimeService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.batch.core.Job;
+import org.springframework.batch.core.JobExecution;
+import org.springframework.batch.core.JobParameters;
+import org.springframework.batch.core.JobParametersBuilder;
+import org.springframework.batch.core.launch.JobLauncher;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
- * @implSpec : Controller to start/resume cooking of veg masala noodles
+ * @implSpec : Controller to start cooking of veg masala noodles via Spring Batch Job
  */
 @RestController
 public class NoodlesController {
 
     private final Logger logger = LoggerFactory.getLogger(this.getClass());
 
-    @Autowired
-    private RuntimeService runtimeService;
+    private final JobLauncher jobLauncher;
+    private final Job cookNoodlesJob;
 
-    @PostMapping("/noodles/ready/{process-instance-id}")
-    @Operation(summary = "cooked instant noodles", tags = {"noodles"})
+    @Autowired
+    public NoodlesController(JobLauncher jobLauncher, Job cookNoodlesJob) {
+        this.jobLauncher = jobLauncher;
+        this.cookNoodlesJob = cookNoodlesJob;
+    }
+
+    @PostMapping("/noodles/cook")
+    @Operation(summary = "cook instant noodles", tags = {"noodles"})
     @ApiResponses(value = {
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "204", description = "Cooking done", content = {@Content(schema = @Schema(hidden = true))}),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Bad Request", content = {@Content(schema = @Schema(hidden = true))}),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Job started", content = {@Content(schema = @Schema(hidden = true))}),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "500", description = "Unexpected Error", content = {@Content(schema = @Schema(hidden = true))})})
-    public ResponseEntity<String> cookedNoodles(
-            @PathVariable(name = "process-instance-id") String processInstanceId
+    public ResponseEntity<String> cookNoodles(
+            @RequestParam(defaultValue = "false") boolean noodles,
+            @RequestParam(defaultValue = "false") boolean water,
+            @RequestParam(name = "pan_and_spatula", defaultValue = "false") boolean panAndSpatula,
+            @RequestParam(defaultValue = "false") boolean onion,
+            @RequestParam(defaultValue = "false") boolean tomato,
+            @RequestParam(defaultValue = "false") boolean cheese,
+            @RequestParam(defaultValue = "false") boolean carrot,
+            @RequestParam(defaultValue = "false") boolean capsicum
     ) {
 
-        WorkflowLogger.info(logger, "Noodles Cooked", "Cooking done for process instance id: " + processInstanceId);
+        WorkflowLogger.info(logger, "Cook Noodles", "Starting cook noodles batch job");
 
         try {
-            if (StringUtils.isEmpty(processInstanceId)) {
-                WorkflowLogger.error(logger, "Noodles Ready", "Process Instance Id cannot be null or empty");
-                return ResponseEntity.badRequest().body("Process Instance Id cannot be null or empty");
-            }
+            JobParameters params = new JobParametersBuilder()
+                    .addString(Constants.NOODLES, String.valueOf(noodles))
+                    .addString(Constants.WATER, String.valueOf(water))
+                    .addString(Constants.PAN_SPATULA, String.valueOf(panAndSpatula))
+                    .addString(Constants.ONION, String.valueOf(onion))
+                    .addString(Constants.TOMATO, String.valueOf(tomato))
+                    .addString(Constants.CHEESE, String.valueOf(cheese))
+                    .addString(Constants.CARROT, String.valueOf(carrot))
+                    .addString(Constants.CAPSICUM, String.valueOf(capsicum))
+                    .addLong("timestamp", System.currentTimeMillis())
+                    .toJobParameters();
 
-            runtimeService
-                    .createMessageCorrelation(Constants.NOODLES_COOKED)
-                    .processInstanceId(processInstanceId)
-                    .correlate();
+            JobExecution execution = jobLauncher.run(cookNoodlesJob, params);
 
-            return ResponseEntity.ok().body(processInstanceId + " is ready to eat.");
+            return ResponseEntity.ok("Job id: " + execution.getId()
+                    + ", Status: " + execution.getStatus()
+                    + ", ExitStatus: " + execution.getExitStatus().getExitCode());
         } catch (Exception e) {
-            WorkflowLogger.error(logger, "Noodles Ready", "Unknown Exception", e);
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Unknown Exception. Message: " + e.getMessage());
+            WorkflowLogger.error(logger, "Cook Noodles", "Unknown Exception", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body("Failed to launch job. Message: " + e.getMessage());
         }
 
     }

@@ -1,32 +1,44 @@
 package com.noodles.workflow.delegates;
 
 import com.noodles.util.Constants;
-import org.camunda.bpm.engine.delegate.DelegateExecution;
-import org.camunda.bpm.extension.mockito.CamundaMockito;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.mockito.InjectMocks;
-import org.mockito.MockitoAnnotations;
+import org.springframework.batch.core.*;
+import org.springframework.batch.core.scope.context.ChunkContext;
+import org.springframework.batch.core.scope.context.StepContext;
+import org.springframework.batch.repeat.RepeatStatus;
 
+/**
+ * Unit test for OrderOnline Tasklet
+ */
 class OrderOnlineTest {
 
-    DelegateExecution execution;
-
-    @InjectMocks
     private OrderOnline orderOnline;
 
     @BeforeEach
     void setUp() {
-        MockitoAnnotations.openMocks(this);
-        execution = CamundaMockito.delegateExecutionFake();
+        orderOnline = new OrderOnline();
     }
-
 
     @Test
     void test_order_online() {
-        orderOnline.execute(execution);
-        Assertions.assertEquals(false, execution.getVariable(Constants.DID_WE_EAT_NOODLES));
-        Assertions.assertEquals(true, execution.getVariable(Constants.ORDER_ONLINE));
+        JobParameters params = new JobParametersBuilder().toJobParameters();
+
+        StepExecution stepExecution = createStepExecution(params);
+        StepContribution contribution = new StepContribution(stepExecution);
+        ChunkContext chunkContext = new ChunkContext(new StepContext(stepExecution));
+
+        RepeatStatus status = orderOnline.execute(contribution, chunkContext);
+
+        Assertions.assertEquals(RepeatStatus.FINISHED, status);
+        Assertions.assertEquals(false, stepExecution.getJobExecution().getExecutionContext().get(Constants.DID_WE_EAT_NOODLES));
+        Assertions.assertEquals(true, stepExecution.getJobExecution().getExecutionContext().get(Constants.ORDER_ONLINE));
+    }
+
+    private StepExecution createStepExecution(JobParameters params) {
+        JobInstance jobInstance = new JobInstance(1L, "cookNoodlesJob");
+        JobExecution jobExecution = new JobExecution(jobInstance, params);
+        return new StepExecution("orderOnlineStep", jobExecution);
     }
 }

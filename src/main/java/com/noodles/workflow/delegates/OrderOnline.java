@@ -2,29 +2,39 @@ package com.noodles.workflow.delegates;
 
 import com.noodles.util.Constants;
 import com.noodles.util.WorkflowLogger;
-import org.camunda.bpm.engine.delegate.DelegateExecution;
-import org.camunda.bpm.engine.delegate.JavaDelegate;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.stereotype.Service;
+import org.springframework.batch.core.StepContribution;
+import org.springframework.batch.core.scope.context.ChunkContext;
+import org.springframework.batch.core.step.tasklet.Tasklet;
+import org.springframework.batch.item.ExecutionContext;
+import org.springframework.batch.repeat.RepeatStatus;
+import org.springframework.stereotype.Component;
 
-@Service("OrderOnline")
-public class OrderOnline implements JavaDelegate {
+@Component
+public class OrderOnline implements Tasklet {
 
     private final Logger logger = LoggerFactory.getLogger(this.getClass());
 
     /**
      * Cooking is no child's play. Let's order online
      *
-     * @param execution : Process Variables will be retrieved from DelegateExecution
+     * @param contribution : step contribution
+     * @param chunkContext : chunk context providing access to job parameters and execution context
+     * @return RepeatStatus.FINISHED
      */
     @Override
-    public void execute(DelegateExecution execution) {
+    public RepeatStatus execute(StepContribution contribution, ChunkContext chunkContext) {
 
         WorkflowLogger.info(logger, "Order Online", "Veg masala noodles was no success.. Let's order online...");
-        execution.setVariable(Constants.DID_WE_EAT_NOODLES, false);
+
+        ExecutionContext jobContext = chunkContext.getStepContext().getStepExecution()
+                .getJobExecution().getExecutionContext();
+        jobContext.put(Constants.DID_WE_EAT_NOODLES, false);
 
         WorkflowLogger.info(logger, "Order Online", "Ordering is not part of this flow yet... Try your local apps...");
-        execution.setVariable(Constants.ORDER_ONLINE, true);
+        jobContext.put(Constants.ORDER_ONLINE, true);
+
+        return RepeatStatus.FINISHED;
     }
 }
